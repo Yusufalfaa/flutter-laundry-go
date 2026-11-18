@@ -1,27 +1,27 @@
-/* Reusable button for LaundryGo.
-
-Usage:
-```dart
-  AppButton(
-    text: 'Masuk',
-    onPressed: () {},
-  )
-
-  AppButton(
-    text: 'Daftar',
-    variant: AppButtonVariant.secondary,
-    onPressed: () {},
-  )
-```
-
-Variants:
- - primary: Teal background with white text.
- - secondary: White background with teal text and border.
-*/ 
-
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
+
+/// Reusable button for LaundryGo.
+///
+/// Usage:
+/// ```dart
+///  AppButton(
+///    text: 'Masuk',
+///    onPressed: () {},
+///  )
+///
+///  AppButton(
+///    text: 'Daftar',
+///    variant: AppButtonVariant.secondary,
+///    onPressed: () {},
+///  )
+/// ```
+///
+/// Variants:
+/// - primary: Teal background with white text.
+/// - secondary: White background with teal text and border.
+ 
 
 enum AppButtonVariant {
   primary,
