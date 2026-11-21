@@ -1,7 +1,10 @@
 
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/app_colors.dart';
+import 'package:laundry_go/core/constants/app_colors.dart';
+
+// Link to next screen
+import 'package:laundry_go/features/auth/screens/phone_auth_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({
@@ -134,9 +137,9 @@ class WelcomeScreen extends StatelessWidget {
                                   height: 1.5,
                                 ),
                           ),
-                          const SizedBox(height: 28),
+                          const SizedBox(height: 20),
 
-                          // Phone authentication
+                          // Customer phone authentication
                           _WelcomeOptionButton(
                             label: 'Lanjutkan dengan Nomor HP',
                             icon: const Icon(
@@ -144,36 +147,17 @@ class WelcomeScreen extends StatelessWidget {
                               color: AppColors.primary,
                               size: 22,
                             ),
-                            onPressed: () => _handleAction(
-                              context,
-                              onPhonePressed,
-                              'Login dengan nomor HP',
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Google authentication
-                          _WelcomeOptionButton(
-                            label: 'Lanjutkan dengan Google',
-                            icon: SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: Transform.scale(
-                                scale: 2,
-                                child: Image.asset(
-                                  'assets/images/logos/google_logo.png',
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-                            onPressed: () => _handleAction(
-                              context,
-                              onGooglePressed,
-                              'Login dengan Google',
-                            ),
+                            onPressed: () => {
+                              Navigator.push(
+                                context, 
+                                MaterialPageRoute(
+                                  builder: (context) => const PhoneAuthScreen(
+                                    role: 'customer',
+                                  )))
+                            }
                           ),
 
-                          const SizedBox(height: 28),
+                          const SizedBox(height: 20),
                           const Divider(color: AppColors.border),
                           const SizedBox(height: 20),
 
@@ -190,8 +174,8 @@ class WelcomeScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           _WelcomeOptionButton(
-                            label: 'Daftar sebagai Mitra LaundryGo',
-                            subtitle: 'Daftarkan usaha laundry kamu',
+                            label: 'Punya usaha laundry?',
+                            subtitle: 'Daftar/Masuk sebagai Mitra LaundryGo',
                             icon: const Icon(
                               Icons.storefront_outlined,
                               color: AppColors.primary,
@@ -199,11 +183,14 @@ class WelcomeScreen extends StatelessWidget {
                             ),
                             backgroundColor: AppColors.aquaTint,
                             borderColor: AppColors.aquaTint,
-                            onPressed: () => _handleAction(
-                              context,
-                              onPartnerPressed,
-                              'Pendaftaran mitra',
-                            ),
+                            onPressed: () => {
+                              Navigator.push(
+                                context, 
+                                MaterialPageRoute(
+                                  builder: (context) => const PhoneAuthScreen(
+                                    role: 'partner',
+                                  )))
+                            }
                           ),
                         ],
                       ),
