@@ -18,24 +18,6 @@ class WelcomeScreen extends StatelessWidget {
   final VoidCallback? onGooglePressed;
   final VoidCallback? onPartnerPressed;
 
-  void _handleAction(
-    BuildContext context,
-    VoidCallback? callback,
-    String featureName,
-  ) {
-    if (callback != null) {
-      callback();
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$featureName belum tersedia.'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
