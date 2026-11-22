@@ -1,6 +1,9 @@
 
 import 'package:flutter/material.dart';
 
+import 'package:latlong2/latlong.dart';
+
+import 'package:laundry_go/features/location/screens/location_picker_screen.dart';
 import 'package:laundry_go/core/constants/app_colors.dart';
 
 class CustomerRegisterScreen extends StatefulWidget {
@@ -30,6 +33,23 @@ class _CustomerRegisterScreenState
   final TextEditingController _addressDetailController =
       TextEditingController();
 
+  LatLng? _selectedLocation;
+
+  Future<void> _openLocationPicker() async {
+    final result = await Navigator.push<LatLng>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const LocationPickerScreen(),
+      ),
+    );
+
+    if (result == null) return;
+
+    setState(() {
+      _selectedLocation = result;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -51,7 +71,7 @@ class _CustomerRegisterScreenState
     if (fullName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter your full name.'),
+          content: Text('Silakan masukkan nama lengkap Anda.'),
         ),
       );
       return;
@@ -59,7 +79,7 @@ class _CustomerRegisterScreenState
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Registration will be connected later.'),
+        content: Text('Fitur pendaftaran akan segera tersedia.'),
       ),
     );
   }
@@ -213,6 +233,29 @@ class _CustomerRegisterScreenState
                 hint: 'Masukkan alamat utama',
                 controller: _addressController,
                 maxLines: 3,
+              ),
+
+              const SizedBox(height: 12),
+
+              // Map location picker button
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: _openLocationPicker,
+                  icon: const Icon(Icons.location_on_outlined),
+                  label: const Text(
+                    'Pilih di Peta',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
               ),
 
               const SizedBox(height: 24),
