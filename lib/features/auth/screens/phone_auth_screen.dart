@@ -8,6 +8,7 @@ import 'package:laundry_go/shared/widgets/app_text_field.dart';
 import 'package:laundry_go/features/auth/services/auth_service.dart';
 import 'package:laundry_go/features/auth/screens/customer_register_screen.dart';
 import 'package:laundry_go/features/auth/screens/partner_register_screen.dart';
+import 'package:laundry_go/features/customer/screens/customer_main_screen.dart';
 
 class PhoneAuthScreen extends StatefulWidget {
   final String role;
@@ -68,9 +69,29 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
 
         if (!mounted) return;
 
-        _showMessage(
-          'Login berhasil. Selamat datang, ${profile['full_name']}!',
-        );
+        if (widget.role == 'customer') {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Login berhasil. Selamat datang, ${profile['full_name'].toString().trim().split(' ').first}!',
+              ),
+              backgroundColor: AppColors.primary,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          if (!mounted) return;
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CustomerMainScreen(),
+            ),
+            (route) => false,
+          );
+        }
 
         // Dashboard navigation will be added later.
         return;

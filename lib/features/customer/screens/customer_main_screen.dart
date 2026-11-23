@@ -1,11 +1,18 @@
 
 import 'package:flutter/material.dart';
 
+import '../widgets/customer_bottom_nav.dart';
+import 'customer_home_screen.dart';
+import 'customer_search_screen.dart';
+import 'customer_orders_screen.dart';
+import 'customer_profile_screen.dart';
+
 class CustomerMainScreen extends StatefulWidget {
   const CustomerMainScreen({super.key});
 
   @override
-  State<CustomerMainScreen> createState() => _CustomerMainScreenState();
+  State<CustomerMainScreen> createState() =>
+      _CustomerMainScreenState();
 }
 
 class _CustomerMainScreenState extends State<CustomerMainScreen> {
@@ -21,38 +28,18 @@ class _CustomerMainScreenState extends State<CustomerMainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5FAFB),
       body: IndexedStack(
         index: _selectedIndex,
         children: _pages,
       ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: CustomerBottomNav(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) {
+        onItemSelected: (index) {
           setState(() {
             _selectedIndex = index;
           });
         },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Beranda',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.search),
-            label: 'Penelusuran',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
-            label: 'Pesanan',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profil',
-          ),
-        ],
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'package:laundry_go/core/constants/app_colors.dart';
 
 import 'package:latlong2/latlong.dart';
 
+import 'package:laundry_go/features/customer/screens/customer_main_screen.dart';
 import 'package:laundry_go/features/location/screens/location_picker_screen.dart';
 import 'package:laundry_go/features/location/services/geocoding_service.dart';
 import 'package:laundry_go/features/auth/services/auth_service.dart';
@@ -152,11 +153,23 @@ class _CustomerRegisterScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Pendaftaran berhasil!'),
+          content: Text('Pendaftaran berhasil! Selamat datang di LaundryGo.'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
         ),
       );
 
-      // Dashboard navigation will be added later.
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const CustomerMainScreen(),
+        ),
+        (route) => false,
+      );
     } catch (e) {
       if (!mounted) return;
 

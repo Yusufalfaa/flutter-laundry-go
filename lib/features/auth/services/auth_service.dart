@@ -113,8 +113,6 @@ class AuthService {
     }
   }
 
-
-
   // Log in using a registered phone number and expected role.
   Future<Map<String, dynamic>> login({
     required String phoneNumber,
