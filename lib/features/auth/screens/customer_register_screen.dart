@@ -1,10 +1,14 @@
 
 import 'package:flutter/material.dart';
 
+import 'package:laundry_go/core/constants/app_colors.dart';
+
 import 'package:latlong2/latlong.dart';
 
 import 'package:laundry_go/features/location/screens/location_picker_screen.dart';
-import 'package:laundry_go/core/constants/app_colors.dart';
+import 'package:laundry_go/features/location/services/geocoding_service.dart';
+import 'package:laundry_go/features/auth/services/auth_service.dart';
+
 
 class CustomerRegisterScreen extends StatefulWidget {
   final String phoneNumber;
@@ -35,6 +39,14 @@ class _CustomerRegisterScreenState
 
   LatLng? _selectedLocation;
 
+  final GeocodingService _geocodingService = GeocodingService();
+
+  bool _isLoadingAddress = false;
+
+  final AuthService _authService = AuthService();
+
+  bool _isRegistering = false;
+
   Future<void> _openLocationPicker() async {
     final result = await Navigator.push<LatLng>(
       context,
@@ -43,12 +55,54 @@ class _CustomerRegisterScreenState
       ),
     );
 
-    if (result == null) return;
+    if (result == null || !mounted) return;
 
     setState(() {
       _selectedLocation = result;
+      _isLoadingAddress = true;
     });
+
+    try {
+      final address = await _geocodingService
+          .getAddressFromCoordinates(
+        latitude: result.latitude,
+        longitude: result.longitude,
+      );
+
+      if (!mounted) return;
+
+      if (address == null || address.isEmpty) {
+        throw Exception('Address not found.');
+      }
+
+      setState(() {
+        _addressController.text = address;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Alamat berhasil ditemukan.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Gagal mengambil alamat. Silakan coba lagi.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingAddress = false;
+        });
+      }
+    }
   }
+
 
   @override
   void initState() {
@@ -65,8 +119,11 @@ class _CustomerRegisterScreenState
     super.dispose();
   }
 
-  void _handleRegister() {
+  Future<void> _handleRegister() async {
     final fullName = _nameController.text.trim();
+    final phoneNumber = _phoneController.text.trim();
+    final address = _addressController.text.trim();
+    final addressDetail = _addressDetailController.text.trim();
 
     if (fullName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -77,12 +134,48 @@ class _CustomerRegisterScreenState
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Fitur pendaftaran akan segera tersedia.'),
-      ),
-    );
+    setState(() {
+      _isRegistering = true;
+    });
+
+    try {
+      await _authService.registerCustomer(
+        fullName: fullName,
+        phoneNumber: phoneNumber,
+        address: address,
+        addressDetail: addressDetail,
+        latitude: _selectedLocation?.latitude,
+        longitude: _selectedLocation?.longitude,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pendaftaran berhasil!'),
+        ),
+      );
+
+      // Dashboard navigation will be added later.
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Pendaftaran gagal: ${e.toString()}',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRegistering = false;
+        });
+      }
+    }
   }
+
 
   // Build a reusable text field.
   Widget _buildTextField({
@@ -238,19 +331,34 @@ class _CustomerRegisterScreenState
               const SizedBox(height: 12),
 
               // Map location picker button
+
               SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: OutlinedButton.icon(
-                  onPressed: _openLocationPicker,
-                  icon: const Icon(Icons.location_on_outlined),
-                  label: const Text(
-                    'Pilih di Peta',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                  onPressed: _isLoadingAddress ? null : _openLocationPicker,
+                  icon: _isLoadingAddress
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.location_on_outlined),
+                  label: Text(
+                    _isLoadingAddress
+                        ? 'Mengambil alamat...'
+                        : 'Pilih di Peta',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
+                    side: const BorderSide(
+                      color: AppColors.primary,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -275,7 +383,7 @@ class _CustomerRegisterScreenState
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: _handleRegister,
+                  onPressed: _isRegistering ? null : _handleRegister,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -284,13 +392,22 @@ class _CustomerRegisterScreenState
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: const Text(
-                    'Daftar',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  child: _isRegistering
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Daftar',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
               ),
 

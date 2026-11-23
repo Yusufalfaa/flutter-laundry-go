@@ -5,6 +5,7 @@ import 'package:laundry_go/core/constants/app_colors.dart';
 import 'package:laundry_go/shared/widgets/app_button.dart';
 import 'package:laundry_go/shared/widgets/app_text_field.dart';
 
+import 'package:laundry_go/features/auth/services/auth_service.dart';
 import 'package:laundry_go/features/auth/screens/customer_register_screen.dart';
 import 'package:laundry_go/features/auth/screens/partner_register_screen.dart';
 
@@ -21,7 +22,12 @@ class PhoneAuthScreen extends StatefulWidget {
 }
 
 class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
-  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _phoneController =
+      TextEditingController();
+
+  final AuthService _authService = AuthService();
+
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -29,49 +35,94 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
     super.dispose();
   }
 
-
-  void _handleContinue() {
+  Future<void> _handleContinue() async {
     final phoneNumber = _phoneController.text.trim();
 
     if (phoneNumber.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nomor HP wajib diisi.'),
-        ),
-      );
+      _showMessage('Nomor HP wajib diisi.');
       return;
     }
 
     final phoneRegex = RegExp(r'^08[0-9]{8,11}$');
 
     if (!phoneRegex.hasMatch(phoneNumber)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Masukkan nomor HP yang valid.'),
-        ),
-      );
+      _showMessage('Masukkan nomor HP yang valid.');
       return;
     }
 
-    if (widget.role == 'customer') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => CustomerRegisterScreen(
-            phoneNumber: phoneNumber,
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final existingUser =
+          await _authService.checkPhoneNumber(phoneNumber);
+
+      if (!mounted) return;
+
+      if (existingUser != null) {
+        final profile = await _authService.login(
+          phoneNumber: phoneNumber,
+          role: widget.role,
+        );
+
+        if (!mounted) return;
+
+        _showMessage(
+          'Login berhasil. Selamat datang, ${profile['full_name']}!',
+        );
+
+        // Dashboard navigation will be added later.
+        return;
+      }
+
+      if (widget.role == 'customer') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CustomerRegisterScreen(
+              phoneNumber: phoneNumber,
+            ),
           ),
-        ),
-      );
-    } else if (widget.role == 'partner') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PartnerRegisterScreen(),
-        ),
-      );
+        );
+      } else if (widget.role == 'partner') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PartnerRegisterScreen(
+              phoneNumber: phoneNumber,
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+
+      if (error.toString().contains('Account role does not match')) {
+        _showMessage(
+          'Nomor HP ini terdaftar untuk jenis akun yang berbeda.',
+        );
+      } else {
+        _showMessage(
+          'Terjadi kesalahan. Silakan coba lagi.',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +159,6 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
 
               const SizedBox(height: 36),
 
-              // Page title
               Text(
                 'Masukkan Nomor Telepon',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -138,10 +188,9 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
 
               const Spacer(),
 
-              // Continue button
               AppButton(
-                text: 'Lanjutkan',
-                onPressed: _handleContinue,
+                text: _isLoading ? 'Memeriksa...' : 'Lanjutkan',
+                onPressed: _isLoading ? null : _handleContinue,
               ),
 
               const SizedBox(height: 24),

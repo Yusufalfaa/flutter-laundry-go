@@ -27,11 +27,15 @@ class AuthService {
   Future<Map<String, dynamic>> registerCustomer({
     required String fullName,
     required String phoneNumber,
+    String? address,
+    String? addressDetail,
+    double? latitude,
+    double? longitude,
   }) async {
     final existingUser = await checkPhoneNumber(phoneNumber);
 
     if (existingUser != null) {
-      throw Exception('Phone number is already registered.');
+      throw Exception('Nomor HP sudah terdaftar.');
     }
 
     final response = await _supabase
@@ -40,6 +44,14 @@ class AuthService {
           'full_name': fullName.trim(),
           'phone_number': phoneNumber.trim(),
           'role': 'customer',
+          'address': address?.trim().isEmpty == true
+              ? null
+              : address?.trim(),
+          'address_detail': addressDetail?.trim().isEmpty == true
+              ? null
+              : addressDetail?.trim(),
+          'latitude': latitude,
+          'longitude': longitude,
         })
         .select()
         .single();
@@ -55,6 +67,9 @@ class AuthService {
     required String phoneNumber,
     required String businessName,
     required String address,
+    String? addressDetail,
+    double? latitude,
+    double? longitude,
   }) async {
     final existingUser = await checkPhoneNumber(phoneNumber);
 
@@ -77,6 +92,11 @@ class AuthService {
         'profile_id': profile['id'],
         'business_name': businessName.trim(),
         'address': address.trim(),
+        'address_detail': addressDetail?.trim().isEmpty == true
+            ? null
+            : addressDetail?.trim(),
+        'latitude': latitude,
+        'longitude': longitude,
       });
 
       await saveSession(profile);
@@ -93,18 +113,28 @@ class AuthService {
     }
   }
 
-  // Log in using a registered phone number.
-  Future<Map<String, dynamic>> login(String phoneNumber) async {
+
+
+  // Log in using a registered phone number and expected role.
+  Future<Map<String, dynamic>> login({
+    required String phoneNumber,
+    required String role,
+  }) async {
     final profile = await checkPhoneNumber(phoneNumber);
 
     if (profile == null) {
       throw Exception('Phone number is not registered.');
     }
 
+    if (profile['role'] != role) {
+      throw Exception('Account role does not match.');
+    }
+
     await saveSession(profile);
 
     return profile;
   }
+
 
   // Save the current user session locally.
   Future<void> saveSession(Map<String, dynamic> profile) async {
