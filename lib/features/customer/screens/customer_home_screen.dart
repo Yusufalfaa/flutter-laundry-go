@@ -1,11 +1,21 @@
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:laundry_go/core/constants/app_colors.dart';
 import 'package:laundry_go/features/auth/services/auth_service.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
-  const CustomerHomeScreen({super.key});
+  final ValueChanged<String> onServiceSelected;
+  final VoidCallback onViewAllOrders;
+
+  const CustomerHomeScreen({
+    super.key,
+    required this.onServiceSelected,
+    required this.onViewAllOrders,
+  });
 
   @override
   State<CustomerHomeScreen> createState() =>
@@ -38,6 +48,28 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     },
   ];
 
+  final List<Map<String, dynamic>> _activeOrders = [];
+
+  bool _isLoadingOrders = true;
+  String? _orderError;
+
+  static const List<String> _activeStatuses = [
+    'pending',
+    'confirmed',
+    'pickup',
+    'processing',
+    'delivering',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+
+    _loadUserSession();
+    _loadActiveOrders();
+    _startPromotionAutoScroll();
+  }
+
   void _startPromotionAutoScroll() {
     _promotionTimer?.cancel();
 
@@ -58,13 +90,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _loadUserSession();
-    _startPromotionAutoScroll();
-  }
-
   Future<void> _loadUserSession() async {
     try {
       final session = await _authService.getSession();
@@ -73,15 +98,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
       if (session != null) {
         final fullName = session['full_name']?.trim() ?? '';
-        final firstName = fullName
+        final nameParts = fullName
             .split(' ')
             .where((word) => word.isNotEmpty)
-            .firstOrNull;
+            .toList();
 
         setState(() {
-          _firstName = firstName?.isNotEmpty == true
-              ? firstName!
-              : 'Pengguna';
+          _firstName =
+              nameParts.isNotEmpty ? nameParts.first : 'Pengguna';
           _isLoading = false;
         });
       } else {
@@ -90,6 +114,8 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         });
       }
     } catch (error) {
+      debugPrint('Failed to load user session: $error');
+
       if (!mounted) return;
 
       setState(() {
@@ -98,11 +124,63 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     }
   }
 
-  void _navigateToTab(int index) {
-    final mainScreenState = context.findAncestorStateOfType<
-        State<StatefulWidget>>();
+  Future<void> _loadActiveOrders() async {
+    try {
+      final session = await _authService.getSession();
 
-    // Tab navigation will be connected through a callback.
+      if (session == null || session['id'] == null) {
+        if (!mounted) return;
+
+        setState(() {
+          _activeOrders.clear();
+          _isLoadingOrders = false;
+        });
+        return;
+      }
+
+      final response = await Supabase.instance.client
+          .from('orders')
+          .select('''
+            id,
+            status,
+            created_at,
+            partners(business_name),
+            order_items(service_name)
+          ''')
+          .eq('customer_id', session['id']!)
+          .inFilter('status', _activeStatuses)
+          .order('created_at', ascending: false)
+          .limit(1);
+
+      if (!mounted) return;
+
+      setState(() {
+        _activeOrders
+          ..clear()
+          ..addAll(
+            List<Map<String, dynamic>>.from(response),
+          );
+
+        _isLoadingOrders = false;
+        _orderError = null;
+      });
+    } catch (error) {
+      debugPrint('Failed to load active orders: $error');
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoadingOrders = false;
+        _orderError = 'Gagal memuat pesanan.';
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _promotionTimer?.cancel();
+    _promotionController.dispose();
+    super.dispose();
   }
 
   Widget _buildHeader() {
@@ -151,8 +229,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 Expanded(
                   flex: 3,
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
@@ -191,13 +268,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     );
   }
 
-  @override
-  void dispose() {
-    _promotionTimer?.cancel();
-    _promotionController.dispose();
-    super.dispose();
-  }
-
   Widget _buildGreeting() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,11 +296,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     required IconData icon,
     required String title,
     required String subtitle,
+    required String serviceType,
   }) {
     return Expanded(
       child: InkWell(
         onTap: () {
-          // Search tab navigation will be connected later.
+          widget.onServiceSelected(serviceType);
         },
         borderRadius: BorderRadius.circular(16),
         child: Container(
@@ -283,6 +354,123 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     );
   }
 
+  String _getStatusLabel(String status) {
+    switch (status) {
+      case 'pending':
+        return 'Menunggu Konfirmasi';
+      case 'confirmed':
+        return 'Pesanan Dikonfirmasi';
+      case 'pickup':
+        return 'Dalam Penjemputan';
+      case 'processing':
+        return 'Sedang Dicuci';
+      case 'delivering':
+        return 'Dalam Pengantaran';
+      default:
+        return status;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'pending':
+        return AppColors.starPromo;
+      case 'confirmed':
+        return AppColors.primary;
+      case 'pickup':
+        return Colors.deepPurple;
+      case 'processing':
+        return Colors.blue;
+      case 'delivering':
+        return AppColors.success;
+      default:
+        return AppColors.textSecondary;
+    }
+  }
+
+  Widget _buildOrderCard(Map<String, dynamic> order) {
+    final status = order['status']?.toString() ?? '';
+
+    final partner = order['partners'];
+    final partnerName = partner is Map
+        ? partner['business_name']?.toString() ?? 'Mitra Laundry'
+        : 'Mitra Laundry';
+
+    final items = order['order_items'] as List? ?? [];
+
+    final serviceNames = items
+        .map((item) => item['service_name']?.toString() ?? '')
+        .where((name) => name.isNotEmpty)
+        .toSet()
+        .join(', ');
+
+    final statusColor = _getStatusColor(status);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.local_laundry_service_rounded,
+                color: AppColors.primary,
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  partnerName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.deepNavy,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (serviceNames.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              serviceNames,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 7,
+            ),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              _getStatusLabel(status),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: statusColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActiveOrdersSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -299,9 +487,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               ),
             ),
             TextButton(
-              onPressed: () {
-                // Orders tab navigation will be connected later.
-              },
+              onPressed: widget.onViewAllOrders,
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primary,
                 padding: EdgeInsets.zero,
@@ -316,46 +502,90 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
             ),
           ],
         ),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 26,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: const Column(
-            children: [
-              Icon(
-                Icons.receipt_long_outlined,
-                size: 42,
-                color: AppColors.textSecondary,
+        const SizedBox(height: 8),
+
+        if (_isLoadingOrders)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: CircularProgressIndicator(
+                color: AppColors.primary,
               ),
-              SizedBox(height: 12),
-              Text(
-                'Belum ada pesanan berlangsung',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.deepNavy,
+            ),
+          )
+        else if (_orderError != null)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  _orderError!,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
                 ),
-              ),
-              SizedBox(height: 5),
-              Text(
-                'Pesanan laundry kamu akan muncul di sini.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _isLoadingOrders = true;
+                    });
+                    _loadActiveOrders();
+                  },
+                  child: const Text('Coba Lagi'),
+                ),
+              ],
+            ),
+          )
+        else if (_activeOrders.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 26,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: const Column(
+              children: [
+                Icon(
+                  Icons.receipt_long_outlined,
+                  size: 42,
                   color: AppColors.textSecondary,
                 ),
-              ),
-            ],
-          ),
-        ),
+                SizedBox(height: 12),
+                Text(
+                  'Belum ada pesanan berlangsung',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.deepNavy,
+                  ),
+                ),
+                SizedBox(height: 5),
+                Text(
+                  'Pesanan laundry kamu akan muncul di sini.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          ..._activeOrders.map(_buildOrderCard),
       ],
     );
   }
@@ -387,7 +617,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
                       return AnimatedContainer(
                         duration: const Duration(milliseconds: 250),
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 3,
+                        ),
                         width: isActive ? 20 : 6,
                         height: 6,
                         decoration: BoxDecoration(
@@ -404,7 +636,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
               const SizedBox(height: 26),
               _buildGreeting(),
-              
+
               const SizedBox(height: 22),
               const Text(
                 'Pilih Layanan',
@@ -415,6 +647,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 ),
               ),
               const SizedBox(height: 14),
+
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -422,15 +655,18 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     icon: Icons.scale_rounded,
                     title: 'Laundry Kiloan',
                     subtitle: 'Berdasarkan berat (kg)',
+                    serviceType: 'by_weight',
                   ),
                   const SizedBox(width: 12),
                   _buildServiceCard(
                     icon: Icons.checkroom_rounded,
                     title: 'Laundry Satuan',
                     subtitle: 'Berdasarkan jumlah item',
+                    serviceType: 'by_item',
                   ),
                 ],
               ),
+
               const SizedBox(height: 26),
               _buildActiveOrdersSection(),
             ],

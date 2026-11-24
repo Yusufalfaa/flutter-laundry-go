@@ -6,7 +6,12 @@ import 'package:latlong2/latlong.dart';
 import 'package:laundry_go/core/constants/app_colors.dart';
 
 class LocationPickerScreen extends StatefulWidget {
-  const LocationPickerScreen({super.key});
+  final LatLng? initialLocation;
+
+  const LocationPickerScreen({
+    super.key,
+    this.initialLocation,
+  });
 
   @override
   State<LocationPickerScreen> createState() =>
@@ -21,7 +26,14 @@ class _LocationPickerScreenState
   static const LatLng _initialLocation =
       LatLng(-6.9747, 107.6300);
 
-  LatLng _selectedLocation = _initialLocation;
+  late LatLng _selectedLocation;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedLocation =
+        widget.initialLocation ?? _initialLocation;
+  }
 
   void _handleConfirmLocation() {
     Navigator.pop(context, _selectedLocation);
@@ -45,7 +57,7 @@ class _LocationPickerScreenState
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
-              initialCenter: _initialLocation,
+              initialCenter: _selectedLocation,
               initialZoom: 16,
               onPositionChanged: (camera, hasGesture) {
                 if (hasGesture) {

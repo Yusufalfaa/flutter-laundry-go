@@ -18,12 +18,47 @@ class CustomerMainScreen extends StatefulWidget {
 class _CustomerMainScreenState extends State<CustomerMainScreen> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = const [
-    CustomerHomeScreen(),
-    CustomerSearchScreen(),
-    CustomerOrdersScreen(),
-    CustomerProfileScreen(),
+  final ValueNotifier<String?> _searchServiceFilter =
+      ValueNotifier<String?>(null);
+
+  void _openSearchWithFilter(String serviceType) {
+    _searchServiceFilter.value = serviceType;
+
+    setState(() {
+      _selectedIndex = 1;
+    });
+  }
+
+  void _openOrders() {
+    setState(() {
+      _selectedIndex = 2;
+    });
+  }
+
+  void _openHome() {
+    setState(() {
+      _selectedIndex = 0;
+    });
+  }
+
+  late final List<Widget> _pages = [
+    CustomerHomeScreen(
+      onServiceSelected: _openSearchWithFilter,
+      onViewAllOrders: _openOrders,
+    ),
+    CustomerSearchScreen(
+      serviceFilter: _searchServiceFilter,
+      onBackToHome: _openHome,
+    ),
+    const CustomerOrdersScreen(),
+    const CustomerProfileScreen(),
   ];
+
+  @override
+  void dispose() {
+    _searchServiceFilter.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
