@@ -1,12 +1,14 @@
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+
 import 'package:latlong2/latlong.dart';
 
 import 'package:laundry_go/core/constants/app_colors.dart';
 import 'package:laundry_go/features/location/screens/location_picker_screen.dart';
 import 'package:laundry_go/features/location/services/geocoding_service.dart';
+
 import 'package:laundry_go/features/auth/services/auth_service.dart';
+import 'package:laundry_go/features/partner/screens/partner_main_screen.dart';
 
 class PartnerRegisterScreen extends StatefulWidget {
   final String phoneNumber;
@@ -128,22 +130,38 @@ class _PartnerRegisterScreenState
     final addressDetail = _addressDetailController.text.trim();
 
     if (fullName.isEmpty) {
-      _showMessage('Silakan masukkan nama lengkap.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Silakan masukkan nama lengkap Anda.'),
+        ),
+      );
       return;
     }
 
     if (businessName.isEmpty) {
-      _showMessage('Silakan masukkan nama usaha laundry.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Silakan masukkan nama usaha laundry.'),
+        ),
+      );
       return;
     }
 
     if (address.isEmpty) {
-      _showMessage('Silakan masukkan alamat usaha.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Silakan masukkan alamat usaha.'),
+        ),
+      );
       return;
     }
 
     if (_selectedLocation == null) {
-      _showMessage('Silakan pilih lokasi usaha di peta.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Silakan pilih lokasi usaha di peta.'),
+        ),
+      );
       return;
     }
 
@@ -166,21 +184,32 @@ class _PartnerRegisterScreenState
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Pendaftaran mitra berhasil!'),
+          content: Text(
+            'Pendaftaran berhasil! Selamat datang di LaundryGo.',
+          ),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
         ),
       );
 
-      // Dashboard navigation will be added later.
-    } catch (error, stackTrace) {
-      debugPrint('Partner Registration Error: $error');
-      debugPrint('Stack Trace: $stackTrace');
+      await Future.delayed(const Duration(milliseconds: 500));
 
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const PartnerMainScreen(),
+        ),
+        (route) => false,
+      );
+    } catch (e) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Pendaftaran gagal: ${error.toString()}',
+            'Pendaftaran gagal: ${e.toString()}',
           ),
         ),
       );
@@ -191,14 +220,6 @@ class _PartnerRegisterScreenState
         });
       }
     }
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
   }
 
   // Build a reusable text field.
